@@ -58,9 +58,15 @@ public class DelaunayTerrain : MonoBehaviour {
 
         float[] seed = new float[octaves];
 
+        Random.seed = System.DateTime.Now.Millisecond;
+
+        print(Random.seed);
+        string seedsOut = "";
         for (int i = 0; i < octaves; i++) {
             seed[i] = Random.Range(0.0f, 100.0f);
+            seedsOut += seed[i] + ",";
         }
+        print(seedsOut);
         
         PoissonDiscSampler sampler = new PoissonDiscSampler(xsize, ysize, minPointRadius);
 
@@ -236,6 +242,10 @@ public class DelaunayTerrain : MonoBehaviour {
     }
 
     public void OnDrawGizmos() {
+
+        //Don't draw gizmos to improve framerate
+        return;
+
         if (mesh == null) {
             // Probably in the editor
             return;
