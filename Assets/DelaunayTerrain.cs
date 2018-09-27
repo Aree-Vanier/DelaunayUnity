@@ -1,7 +1,9 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
+using System;
 using TriangleNet.Geometry;
 using TriangleNet.Topology;
+using Random = UnityEngine.Random;
 
 public class DelaunayTerrain : MonoBehaviour {
     // Maximum size of the terrain.
@@ -40,8 +42,12 @@ public class DelaunayTerrain : MonoBehaviour {
     // The delaunay mesh
     private TriangleNet.Mesh mesh = null;
 
-    void Start()
-    {
+    public MatLayer[] materials;
+
+    void Start(){
+        //Sort materials so lowest priorities are first
+        Array.Sort(materials,
+            delegate (MatLayer x, MatLayer y) { return x.priority.CompareTo(y.priority); });
         Generate();
     }
 
@@ -151,6 +157,14 @@ public class DelaunayTerrain : MonoBehaviour {
             chunk.GetComponent<MeshFilter>().mesh = chunkMesh;
             chunk.GetComponent<MeshCollider>().sharedMesh = chunkMesh;
             chunk.transform.parent = transform;
+
+            foreach(MatLayer l in materials) {
+                if (l.Assign(vertices)) {
+                    chunk.GetComponent<MeshRenderer>().material = l.material;
+                }
+            }
+
+
         }
     }
 
@@ -234,6 +248,60 @@ public class DelaunayTerrain : MonoBehaviour {
             Vector3 p0 = new Vector3((float)v0.x, 0.0f, (float)v0.y);
             Vector3 p1 = new Vector3((float)v1.x, 0.0f, (float)v1.y);
             Gizmos.DrawLine(p0, p1);
+        }
+    }
+}
+
+[System.Serializable]
+public class MatLayer {
+    [Tooltip("If multiple materials' requirements are met, the one with the highest priority will be chosen")]
+    public int priority = 5;
+    public Material material;
+    public enum Modes {minY, avgY, maxY, slope}
+    [Tooltip("The mode used for material descision")]
+    public Modes mode;
+    [Tooltip("The minimum threshold for the mode")]
+    public float min;
+    [Tooltip("The maximum threshold for the mode")]
+    public float max;
+
+    public bool Assign(List<Vector3> vertices){
+        switch (mode){
+            case Modes.minY:
+                float minY = float.MaxValue;
+                foreach(Vector3 v in vertices) {
+                    minY = v.y < minY ? v.y : minY;
+                }
+                return (minY > min && minY < max);
+
+            case Modes.maxY:
+                float maxY = float.MinValue;
+                foreach (Vector3 v in vertices) {
+                    maxY = v.y > maxY ? v.y : maxY;
+                }
+                return (maxY > min && maxY < max);
+
+            case Modes.avgY:
+                float sumY = 0;
+                foreach(Vector3 v in vertices) {
+                    sumY += v.y;
+                }
+                float avgY = sumY / vertices.Count;
+                return (avgY > min && avgY < max);
+
+            case Modes.slope:
+                maxY = float.MinValue;
+                minY = float.MaxValue;
+                foreach (Vector3 v in vertices) {
+                    maxY = v.y > maxY ? v.y : maxY;
+                    minY = v.y < minY ? v.y : minY;
+                }
+                float slope = maxY - minY;
+                return (slope > min && slope < max);
+
+            default:
+                return false;
+
         }
     }
 }
